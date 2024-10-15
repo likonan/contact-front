@@ -2,64 +2,31 @@
 export default {
   data() {
     return {
-      roomNum: '',
-      type: '',
-      status: '',
-      roomList: [],
-      pageNumber: 1,
+      id:'',
+      name: '',
+      address: '',
+      phone: '',
+      contactList: [],
+      page: 1,
       pageSize: 10,
       total: 0,
-      chickInFormVisible: false,
-      checkForm: {},
-      client1: {},
-      client2: {},
-      client3: {},
-      client4: {},
-      clients: [],
-      pickerOptions: {
-        shortcuts: [{
-          text: '今天',
-          onClick(picker) {
-            picker.$emit('pick', new Date());
-          }
-        }, {
-          text: '明天',
-          onClick(picker) {
-            const date = new Date();
-            date.setTime(date.getTime() + 3600 * 1000 * 24);
-            picker.$emit('pick', date);
-          }
-        }, {
-          text: '后天',
-          onClick(picker) {
-            const date = new Date();
-            date.setTime(date.getTime() + 3600 * 1000 * 24 * 2);
-            picker.$emit('pick', date);
-          }
-        }, {
-          text: '大后天',
-          onClick(picker) {
-            const date = new Date();
-            date.setTime(date.getTime() + 3600 * 1000 * 24 * 3);
-            picker.$emit('pick', date);
-          }
-        }]
-      }
+      updateVisible: false,
+      contact: {},
+      addContact:{},
+      addVisible: false
     }
   },
   methods: {
-    getRoomList() {
+    getContactList() {
       var params = {};
-      params.roomNum = this.roomNum;
-      params.type = this.type;
-      params.status = this.status;
+      params.name = this.name;
       params.pageSize = this.pageSize;
-      params.pageNumber = this.pageNumber;
-      this.$axios.get('room/checkPage', {params: params})
+      params.page = this.page;
+      this.$axios.get('contact/page', {params: params})
         .then(res => {
           var data = res.data;
           if (data.code == 200) {
-            this.roomList = data.data.rows;
+            this.contactList = data.data.rows;
             this.total = data.data.total;
           }
         })
@@ -67,40 +34,36 @@ export default {
           console.log(e)
         })
     },
-    showCheckInDialog() {
-      this.chickInFormVisible = true;
+    showUpdateDialog(row) {
+      this.updateVisible = true;
+      this.contact=row
+    },
+    showAddDialog(){
+      this.addVisible = true;
     },
     handleSizeChange(val) {
       this.pageSize = val;
-      this.getRoomList();
+      this.getContactList();
     },
     handleCurrentChange(val) {
-      this.pageNumber = val;
-      this.getRoomList();
+      this.page = val;
+      this.getContactList();
     },
-    cancelCheckIn() {
-      this.checkForm = {};
-      this.clients = [];
-      this.client1 = {};
-      this.client2 = {};
-      this.client3 = {};
-      this.client4 = {};
-      this.chickInFormVisible = false;
+    cancelAdd(){
+      this.addContact = {};
+      this.addVisible = false;
     },
-    saveCheckIn() {
-      this.clients.push(this.client1);
-      this.clients.push(this.client2);
-      this.clients.push(this.client3);
-      this.clients.push(this.client4);
-      this.checkForm.clients = this.clients;
-
-      this.$axios.post("/form/add", this.checkForm)
+    saveAdd(){
+      // this.addContact.name = this.name;
+      // this.addContact.address = this.address;
+      // this.addContact.phone = this.phone;
+      this.$axios.post("/contact/add", this.addContact)
         .then(res => {
           var data = res.data;
           if (data.code == 200) {
             this.$message.success(data.msg);
-            this.cancelCheckIn();
-            this.getRoomList();
+            this.cancelAdd();
+            this.getContactList();
           } else {
             this.$message.error(data.msg);
           }
@@ -108,37 +71,59 @@ export default {
         .catch(e => {
           console.log(e)
         });
-      var params = {}
-      params.roomNum = this.checkForm.roomNum;
-      params.clientName = this.client1.name;
-      params.orderNum = this.generateOrderId();
-      this.$axios.post("/order/add",params)
-      .then(res => {
-        var data = res.data;
-        if (data.code == 200) {
-          this.$message.success(data.msg);
-        }else {
-          this.$message.error(data.msg);
-        }
-      })
-        .catch(e=>{
+    },
+    cancelUpdate() {
+     this.contact={};
+      this.updateVisible = false;
+    },
+    saveUpdate() {
+      // this.contact.name = this.name;
+      // this.contact.address = this.address;
+      // this.contact.phone = this.phone;
+
+      this.$axios.put("/contact/update", this.contact)
+        .then(res => {
+          var data = res.data;
+          if (data.code == 200) {
+            this.$message.success(data.msg);
+            this.cancelUpdate();
+            this.getContactList();
+          } else {
+            this.$message.error(data.msg);
+          }
+        })
+        .catch(e => {
           console.log(e)
         });
     },
     setNull() {
-      this.roomNum = '';
-      this.type = '';
-      this.status = '';
-      this.getRoomList();
+      this.name = '';
+      this.getContactList();
     },
-    generateOrderId() {
-      const timestamp = new Date().getTime();
-      const randomNum = Math.floor(Math.random() * 1000);
-      return `${timestamp}-${randomNum}`;
+    deleteContact(id){
+      this.$confirm('此操作将永久删除该联系人, 是否继续?', '提示', {type: 'warning'})
+        .then(()=> {
+          this.$axios.delete('/contact/delete',{params:{"id":id}})
+            .then(res=>{
+              var data=res.data
+              if(data.code==200){
+                this.$message.success(data.msg)
+                this.getContactList()
+              }
+              else{this.$message.warning(data.msg)}
+            })
+            .catch(e=>{
+              console.log(e)
+            })
+        })
+        .catch(()=>{
+          this.$message.info('取消删除')
+        })
+
     }
   },
   mounted() {
-    this.getRoomList();
+    this.getContactList();
   }
 }
 </script>
@@ -147,35 +132,19 @@ export default {
 
   <div>
     <el-form :inline="true">
-      <el-form-item label="房间号">
-        <el-input v-model="roomNum" placeholder="请输入房间号"></el-input>
-      </el-form-item>
-      <el-form-item label="房间类型" label-width="100px">
-        <el-select v-model="type" placeholder="请选择">
-          <el-option label="无" value=""></el-option>
-          <el-option label="单人间" value="单人间"></el-option>
-          <el-option label="双人间" value="双人间"></el-option>
-          <el-option label="套房" value="套房"></el-option>
-        </el-select>
-      </el-form-item>
-      <el-form-item label="房间状态" label-width="100px">
-        <el-select v-model="status" placeholder="请选择">
-          <el-option label="无" value=""></el-option>
-          <el-option label="空闲" value="1"></el-option>
-          <el-option label="使用" value="2"></el-option>
-          <el-option label="清扫" value="3"></el-option>
-        </el-select>
+      <el-form-item label="姓名">
+        <el-input v-model="name" placeholder="请输入姓名"></el-input>
       </el-form-item>
       <el-form-item>
         <template>
           <el-button @click="setNull">重置</el-button>
-          <el-button type="primary" @click="getRoomList">查询</el-button>
-          <el-button type="primary" @click="showCheckInDialog">登记入住</el-button>
+          <el-button type="primary" @click="getContactList">查询</el-button>
+          <el-button type="success" @click="showAddDialog">添加联系人</el-button>
         </template>
       </el-form-item>
     </el-form>
     <el-table
-      :data="roomList"
+      :data="contactList"
       border
       style="width: 100%"
       max-height="600"
@@ -189,38 +158,32 @@ export default {
       >
       </el-table-column>
       <el-table-column
-        prop="roomNum"
-        label="房间号"
+        prop="name"
+        label="姓名"
         sortable
       >
       </el-table-column>
       <el-table-column
-        prop="type"
-        label="类型"
+        prop="address"
+        label="地址"
         sortable
       >
       </el-table-column>
       <el-table-column
-        prop="price"
-        label="价格"
+        prop="phone"
+        label="电话"
         sortable
       >
       </el-table-column>
       <el-table-column
-        prop="status"
-        label="状态"
+        fixed="right"
+        label="操作"
+        width="157"
       >
         <template slot-scope="scope">
-          <el-tag
-            :type="scope.row.status === 1 ? 'success' : scope.row.status===2?'danger' : 'warning'"
-            disable-transitions>{{ scope.row.status === 1 ? "空闲" : scope.row.status === 2 ? "使用" : "清扫" }}
-          </el-tag>
+          <el-button type="primary" size="small" @click="showUpdateDialog(scope.row)">修改</el-button>
+          <el-button type="danger" size="small" @click="deleteContact(scope.row.id)">删除</el-button>
         </template>
-      </el-table-column>
-      <el-table-column
-        prop="description"
-        label="描述"
-      >
       </el-table-column>
     </el-table>
 
@@ -234,64 +197,43 @@ export default {
       :total="total">
     </el-pagination>
 
-    <el-dialog title="入住登记" :visible.sync="chickInFormVisible" @close="cancelCheckIn">
-      <el-form :model="checkForm">
-        <el-form-item label="房间号" label-width="120px">
-          <el-input v-model="checkForm.roomNum" autocomplete="off"></el-input>
+    <el-dialog title="添加联系人" :visible.sync="addVisible">
+      <el-form :model="addContact">
+        <el-form-item label="姓名" label-width="120px">
+          <el-input v-model="addContact.name" autocomplete="off"></el-input>
         </el-form-item>
-        <el-form-item label="开始时间" label-width="120px">
-          <el-date-picker
-            v-model="checkForm.startTime"
-            type="datetime"
-            placeholder="选择日期时间"
-            align="right"
-            :picker-options="pickerOptions">
-          </el-date-picker>
+        <el-form-item label="住址" label-width="120px">
+          <el-input v-model="addContact.address" autocomplete="off"></el-input>
         </el-form-item>
-        <el-form-item label="结束时间" label-width="120px">
-          <el-date-picker
-            v-model="checkForm.endTime"
-            type="datetime"
-            placeholder="选择日期时间"
-            align="right"
-            :picker-options="pickerOptions">
-          </el-date-picker>
-        </el-form-item>
-        <el-form-item label="客人1" label-width="120px">
-          <el-input v-model="client1.name" autocomplete="off" placeholder="客人1的姓名"></el-input>
-          <el-input v-model="client1.idNum" autocomplete="off" placeholder="客人1的身份证号"></el-input>
-          <el-input v-model="client1.sex" autocomplete="off" placeholder="客人1的性别"></el-input>
-          <el-input v-model="client1.age" autocomplete="off" placeholder="客人1的年龄"></el-input>
-          <el-input v-model="client1.address" autocomplete="off" placeholder="客人1的地址"></el-input>
-        </el-form-item>
-        <el-form-item label="客人2" label-width="120px">
-          <el-input v-model="client2.name" autocomplete="off" placeholder="客人2的姓名"></el-input>
-          <el-input v-model="client2.idNum" autocomplete="off" placeholder="客人2的身份证号"></el-input>
-          <el-input v-model="client2.sex" autocomplete="off" placeholder="客人2的性别"></el-input>
-          <el-input v-model="client2.age" autocomplete="off" placeholder="客人2的年龄"></el-input>
-          <el-input v-model="client2.address" autocomplete="off" placeholder="客人2的地址"></el-input>
-        </el-form-item>
-        <el-form-item label="客人3" label-width="120px">
-          <el-input v-model="client3.name" autocomplete="off" placeholder="客人3的姓名"></el-input>
-          <el-input v-model="client3.idNum" autocomplete="off" placeholder="客人3的身份证号"></el-input>
-          <el-input v-model="client3.sex" autocomplete="off" placeholder="客人3的性别"></el-input>
-          <el-input v-model="client3.age" autocomplete="off" placeholder="客人3的年龄"></el-input>
-          <el-input v-model="client3.address" autocomplete="off" placeholder="客人3的地址"></el-input>
-        </el-form-item>
-        <el-form-item label="客人4" label-width="120px">
-          <el-input v-model="client4.name" autocomplete="off" placeholder="客人4的姓名"></el-input>
-          <el-input v-model="client4.idNum" autocomplete="off" placeholder="客人4的身份证号"></el-input>
-          <el-input v-model="client4.sex" autocomplete="off" placeholder="客人4的性别"></el-input>
-          <el-input v-model="client4.age" autocomplete="off" placeholder="客人4的年龄"></el-input>
-          <el-input v-model="client4.address" autocomplete="off" placeholder="客人4的地址"></el-input>
+        <el-form-item label="电话" label-width="120px">
+          <el-input v-model="addContact.phone" autocomplete="off"></el-input>
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
-        <el-button @click="cancelCheckIn">取 消</el-button>
-        <el-button type="primary" @click="saveCheckIn">确 定</el-button>
+        <el-button @click="cancelAdd">取 消</el-button>
+        <el-button type="primary" @click="saveAdd">确 定</el-button>
       </div>
     </el-dialog>
-
+    <el-dialog title="修改联系人" :visible.sync="updateVisible" @close="cancelUpdate">
+        <el-form :model="contact">
+          <el-form-item label="id" label-width="120px">
+            <el-input v-model="contact.id" :disabled="true" autocomplete="off"></el-input>
+          </el-form-item>
+          <el-form-item label="姓名" label-width="120px">
+            <el-input v-model="contact.name" autocomplete="off"></el-input>
+          </el-form-item>
+          <el-form-item label="住址" label-width="120px">
+            <el-input v-model="contact.address" autocomplete="off"></el-input>
+          </el-form-item>
+          <el-form-item label="电话" label-width="120px">
+            <el-input v-model="contact.phone" autocomplete="off"></el-input>
+          </el-form-item>
+        </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="cancelUpdate">取 消</el-button>
+        <el-button type="primary" @click="saveUpdate">确 定</el-button>
+      </div>
+    </el-dialog>
   </div>
 
 </template>
